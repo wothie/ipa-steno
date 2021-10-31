@@ -1,0 +1,17 @@
+* single-stroke dictionary:
+    - remove all words that end in common suffixes (ation, ed, ant, ...) or prefixes (post, de, in, ...)
+        - (maybe let all of the most common words pass)
+        - make sure to not delete affixes that are entire words
+    - of the remaining take some 10 or 20 thousand words (maybe more, check which ones are at the border) and provide them in a counter dictionary
+    - revise which syllable is the center one. Current system too dumb
+    - revise diphthongs (consider making j a vowel, think about how to handle ow)
+        - If I make j a vowel or otherwise remove it from the consonants, I have a free space for the dj and tsh sounds, which could be really rather utility)
+        - do think especially hard about flowerpot
+    - build dictionary from english to simplified ipa
+    - build dictionary from simplified ipa to steno notation
+    - from those, build a dictionary from english to steno notation, ordered by frequency
+    - reverse the dictionary to go from steno to a list of english words(, maybe annotate each word with its frequency)
+    - split each entry, so each steno is only associated with one english word, making use of the numbers 1-3 for conflicting entries. Also keep a list of rejected words
+    * build dictionary from steno notation to Plover notation
+    * finally, build the dictionary from Plover to English
+* multi-stroke dictionary
