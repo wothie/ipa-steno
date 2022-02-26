@@ -79,10 +79,11 @@ def strip_affixes(english):
 
 
 if __name__=='__main__':
-    accepted = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
-                if english in eng_to_ipa_dict.keys()}
+    #accepted = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
+    #            if english in eng_to_ipa_dict.keys()}
+    accepted = {}
     rejected = {}
-    todo = [english for english, _ in counted_english[1000:] if english in eng_to_ipa_dict.keys()]
+    todo = [english for english, _ in counted_english if english in eng_to_ipa_dict.keys()]
 
     for english in todo:
         # Only allowed single-letter words are I and a
@@ -101,12 +102,12 @@ if __name__=='__main__':
 
     out_file.write('eng_stems_to_ipa_dict = {\n')
     for key, val in accepted.items():
-        out_file.write('"{}": {},\n'.format(key, val))
+        out_file.write('{}: {},\n'.format(repr(key), val))
     out_file.write('}\n')
 
     out_file.write('rejected = {\n')
     for key, val in rejected.items():
-        out_file.write('"{}": {},\n'.format(key, val))
+        out_file.write('{}: {},\n'.format(repr(key), val))
     out_file.write('}')
 
     out_file.close()
