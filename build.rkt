@@ -5,9 +5,8 @@
 (require racket/dict)
 (require racket/list)
 
-(define file-deps '(("combine_ipa.py") ;; that's here twice, because of circular dependency
-                    ("eng_to_ipa_dict.py")
-                    ("count.py" "combine_ipa.py")
+(define file-deps '(("eng_to_ipa_dict.py")
+                    ("count.py")
                     ("counted_english.py" "affix_rules.py")
                     ("to_stems.py")
                     ("vowels_and_consonants.py" "eng_stems_to_ipa_dict.py")
