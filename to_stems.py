@@ -85,8 +85,12 @@ if __name__=='__main__':
     todo = [english for english, _ in counted_english[1000:] if english in eng_to_ipa_dict.keys()]
 
     for english in todo:
+        # Only allowed single-letter words are I and a
+        # Those don't even have to get rejected as they won't be multi-stroke either
+        if len(english) == 1 and english not in 'ia':
+            continue
         stripped_prefixes, stripped_suffixes = strip_affixes(english)
-        # If there are no stripped_prefixes or stripped_suffixes, the word is accepted
+        # If there are no stripped_prefixes or stripped_suffixes, the word is accepted.
         if not stripped_prefixes and not stripped_suffixes:
             accepted[english] = eng_to_ipa_dict[english]
         else:

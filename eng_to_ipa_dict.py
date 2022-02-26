@@ -79662,7 +79662,7 @@ eng_to_ipa_dict = {
 "onderdonk": ['ɑndɚdʌŋk'],
 "ondo": ['ɔndow'],
 "ondracek": ['ɑndɹʌsɛk'],
-"one": ['hwʌn', 'wʌn'],
+"one": ['wʌn'],
 "one's": ['wʌnz'],
 "one-up-manship": ['wʌnʌpmænʃɪp'],
 "one-upmanship": ['wʌnʌpmʌnʃɪp'],
