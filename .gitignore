@@ -3,3 +3,5 @@ venv/
 eng_stems_to_ipa_dict.py
 eng_to_notation_dict.py
 eng_to_simp_ipa_dict.py
+counted_english.py
+notation_to_eng_dict.py
