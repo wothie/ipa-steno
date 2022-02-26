@@ -1,74 +1,96 @@
 from eng_to_ipa_dict import eng_to_ipa_dict
 from counted_english import counted_english
 from affix_rules import prefixes, suffixes
-
-def check_ipa_prefix(english, ipa_list, ipa_prefixes):
-    for ipa_prefix in ipa_prefixes:
-        # Make sure we only count significant ones (if possible).
-        for ipa_english in ipa_list:
-            if ipa_english.startswith(ipa_prefix):
-                # prefix is the same for some pair of ipa_english and ipa_prefix
-                return True
-    return False
+from to_notation import count_syllables
 
 
-def check_ipa_suffix(english, ipa_list, ipa_suffixes):
-    for ipa_suffix in ipa_suffixes:
-        # Make sure we only count significant ones (if possible).
-        for ipa_english in ipa_list:
-            if ipa_english.endswith(ipa_suffix):
-                # suffix is the same for some pair of ipa_english and ipa_suffix
-                return True
-    return False
+# Order by length to get the most significant affixes first.
+prefixes_sorted = sorted(prefixes.keys(), key=len, reverse=True)
+suffixes_sorted = sorted(suffixes.keys(), key=len, reverse=True)
+
+
+def strip_affix(english, stripped_apis):
+    """
+    Remove a single prefix and/or a single suffix.
+    Returns the new stripped english, the prefix or [],
+    the list of stripped apis, and the suffix or [].
+    """
+    prefix_result = None
+    suffix_result = None
+    stripped_english = english
+    # Determine single-syllable words if all ipas have one syllable
+    if all([count_syllables(ipa) == 1 for ipa in eng_to_ipa_dict[english]]):
+        return english, None, stripped_apis, None
+
+    for prefix in prefixes_sorted:
+        # Don't strip whole affixes
+        if english == prefix:
+            return english, None, stripped_apis, None
+        if english.startswith(prefix):
+            # Alphabetical prefix found. Check if it's also pronounced like a prefix
+            remaining_apis = [ipa[len(ipa_prefix):]
+                             for ipa in stripped_apis for ipa_prefix
+                             in sorted(prefixes[prefix], key=len, reverse=True)
+                             if ipa.startswith(ipa_prefix)]
+            # If any are left, we found our prefix.
+            if remaining_apis:
+                stripped_english = stripped_english[len(prefix):]
+                stripped_apis = remaining_apis
+                prefix_result = prefix
+                break
+
+    for suffix in suffixes_sorted:
+        # Don't strip whole affixes
+        if english == suffix:
+            return stripped_english, None, stripped_apis, None
+        if english.endswith(suffix):
+            # Alphabetical suffix found. Check if it's also pronounced like a suffix
+            remaining_apis = [ipa[:-len(ipa_suffix)]
+                             for ipa in stripped_apis for ipa_suffix
+                             in sorted(suffixes[suffix], key=len, reverse=True)
+                             if ipa.endswith(ipa_suffix)]
+            # If any are left, we found our suffix.
+            if remaining_apis:
+                stripped_english = stripped_english[:-len(suffix)]
+                stripped_apis = remaining_apis
+                suffix_result = suffix
+                break
+
+    return stripped_english, prefix_result, stripped_apis, suffix_result
+
+
+def strip_affixes(english):
+    """
+    Iteratively tries to strip affixes until none are left or the resulting word isn't a word anymore.
+    Returns the prefixes and suffixes in order.
+    """
+    prefix_result = []
+    stripped_apis = eng_to_ipa_dict[english]
+    suffix_result = []
+    while english in eng_to_ipa_dict.keys():
+        english, prefix, stripped_apis, suffix = strip_affix(english, stripped_apis)
+        prefix_result = prefix_result + [prefix] if prefix else prefix_result
+        suffix_result = [suffix] + suffix_result if suffix else suffix_result
+        if not prefix and not suffix:
+            # Nothing could be stripped, we are done.
+            break
+
+    return prefix_result, suffix_result
 
 
 if __name__=='__main__':
-    # Order by length to get the most significant affixes first.
-    prefixes_sorted = sorted(prefixes.keys(), key=len)
-    suffixes_sorted = sorted(suffixes.keys(), key=len)
-
-    accepted = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000] if english in eng_to_ipa_dict}
+    accepted = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
+                if english in eng_to_ipa_dict.keys()}
     rejected = {}
+    todo = [english for english, _ in counted_english[1000:] if english in eng_to_ipa_dict.keys()]
 
-    for english, ipa_list in eng_to_ipa_dict.items():
-        was_rejected = False
-
-        for prefix in prefixes_sorted:
-            # Don't remove prefixes that are whole words
-            if english == prefix:
-                continue
-            if english.startswith(prefix):
-                if check_ipa_prefix(english, eng_to_ipa_dict[english], prefixes[prefix]):
-                    # add this prefix to the reasons for rejection
-                    if english in rejected:
-                        rejected[english] += [prefix]
-                    else:
-                        rejected[english] = [prefix]
-                    was_rejected = True
-
-                    # We already have the longest prefix that fits this word, so no need to search further
-                    break
-
-        for suffix in suffixes_sorted:
-            # Don't remove suffixes that are whole words
-            if english == suffix:
-                continue
-            if english.endswith(suffix):
-                if check_ipa_suffix(english, eng_to_ipa_dict[english], suffixes[suffix]):
-                    # add this suffix to the reasons for rejection
-                    if english in rejected:
-                        rejected[english] += [suffix]
-                    else:
-                        rejected[english] = [suffix]
-                    was_rejected = True
-
-                    # We already have the longest suffix that fits this word, so no need to search further
-                    break
-
-        if not was_rejected:
-            # Found a full word that doesn't have any pre- or suffixes
+    for english in todo:
+        stripped_prefixes, stripped_suffixes = strip_affixes(english)
+        # If there are no stripped_prefixes or stripped_suffixes, the word is accepted
+        if not stripped_prefixes and not stripped_suffixes:
             accepted[english] = eng_to_ipa_dict[english]
-
+        else:
+            rejected[english] = [stripped_prefixes, stripped_suffixes]
 
     # write output
     out_file = open('eng_stems_to_ipa_dict.py', 'w')

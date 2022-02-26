@@ -62,50 +62,9 @@ def nth_syllable_position(word, n):
     return -1
 
 
-def split_middle(word):
-    """
-    Splits a word into three parts.
-    The onset, the middle vowel cluster, and the ending.
-    Onset and ending come with their vowels removed.
-    """
-
-    syllable_count = count_syllables(word)
-    if syllable_count == 1:
-        # no need to find right cluster
-        # position of the first vowel
-        vowel_position = [n for n, c in enumerate(word) if c in vowels][0]
-        return split_at(word, vowel_position)
-    elif syllable_count == 2:
-        # Try to maximize the number of consonants in the final word
-        starting_consonants_number = [n for n, c in enumerate(word) if c in vowels][0]
-        ending_consonants_number = [n for n, c in enumerate(word[::-1]) if c in vowels][0]
-        if ending_consonants_number <= starting_consonants_number:
-            # first syllable
-            position = nth_syllable_position(word, syllable_count - 2)
-        else:
-            # last syllable
-            position = nth_syllable_position(word, syllable_count - 1)
-        return split_at(word, position)
-    elif 3 <= syllable_count <= 4:
-        # Take the second one, unless there's only one consonant after it
-        second_syllable_position = nth_syllable_position(word, syllable_count - 1)
-        consonants_after_middle_vowel = len([c for c in word[second_syllable_position:] if c in consonants])
-        consonants_before_middle_vowel = len([c for c in word[:second_syllable_position] if c in consonants])
-        if consonants_after_middle_vowel >= 2 or consonants_after_middle_vowel > consonants_before_middle_vowel:
-            return split_at(word, second_syllable_position)
-        return split_at(word, nth_syllable_position(word, syllable_count - 2))
-    elif syllable_count >= 5:
-        # Take the second to last syllable unless there's only 1 consonant
-        second_syllable_position = nth_syllable_position(word, syllable_count - 1)
-        consonants_after_middle_vowel = len([c for c in word[second_syllable_position:] if c in consonants])
-        if consonants_after_middle_vowel >= 2:
-            return split_at(word, second_syllable_position)
-        return split_at(word, nth_syllable_position(word, syllable_count - 2))
-
-
 def to_notation(beginning, middle, end, left_syllable, right_syllable):
     """
-    e.g. "nenaumik" -> "_nnaumk_"; "blegik" -> "blegk_"
+    e.g. "nenaumik" -> "_nnAmk_"; "blegik" -> "blegk_"
     """
 
     result = '_' if left_syllable else ''
@@ -128,17 +87,29 @@ def to_notation(beginning, middle, end, left_syllable, right_syllable):
 
     return result
 
+
+def find_longest(word):
+    """
+    Tries splitting the word at all possible places and uses the one that produces the longest notation.
+    This is for disambiguation.
+    Ties are attempted to resolve by preferring diphtongs
+    """
+    results = [to_notation(*split_at(word, nth_syllable_position(word, i)))
+               for i in range(count_syllables(word))]
+    # sort by length
+    results = sorted(results, key=len, reverse=True)
+    # take only the longest ones
+    results = list(filter(lambda x: len(x) == len(results[0]), results))
+    # prefer diphthongs
+    results = sorted(results, key=lambda ipa: len(list(filter(lambda x: x in 'ƐӔƆUꞮɅƏ', ipa))), reverse=True)
+    return results[0]
+
+
 if __name__=='__main__':
-    # Try to take the shorter simplified ipa word.
     out_file = open('eng_to_notation_dict.py', 'w')
     out_file.write('eng_to_notation_dict = {\n')
     for english, ipa_list in eng_to_simp_ipa_dict.items():
-        result_list = [to_notation(*split_middle(ipa)) for ipa in ipa_list]
-        shortest_result = result_list[0]
-        min = len(shortest_result)
-        for result in result_list:
-            if len(result) < min:
-                min = len(result)
-                shortest_result = result
-        out_file.write('"{}": "{}",\n'.format(english, shortest_result))
+        results = [find_longest(ipa) for ipa in ipa_list]
+        results = sorted(results, key=len, reverse=True)
+        out_file.write('"{}": "{}",\n'.format(english, results[0]))
     out_file.write('}')

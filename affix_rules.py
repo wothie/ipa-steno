@@ -4,7 +4,6 @@ Remove pre- and suffixes from words.
 
 # Maps English to ipa to reduce accidental deletions
 prefixes = {
-'\'s'   : ['z'],
 'ab'    : ['æb'],
 'ad'    : ['ʌd'],
 'an'    : ['æn'],
@@ -73,6 +72,8 @@ prefixes = {
 
 # https://www.grammarbank.com/common-suffixes.html
 suffixes = {
+'\'d'    : ['d'],
+'\'s'    : ['z', 's'],
 'able'   : ['ʌbʌl'],
 'ac'     : ['æk'],
 'acy'    : ['ʌsi'],

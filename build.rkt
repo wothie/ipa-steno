@@ -41,16 +41,31 @@
                     (car (string-split #{md5sum $filename} " "))))
             level))))
 
+;; function to return from the script when a file fails
+(define (end-on-fail command)
+  (when (not
+            (pipeline-success?
+              (run-mixed-pipeline
+                (unix-pipeline-member-spec command) #:return-pipeline-object #t)))
+        (begin
+          (display "Failure")
+          (newline)
+          (exit))))
+
 ;; recompute the rest
 (for-each (lambda (filename)
   (begin
-    (display (string-append "running " filename "\n")))
-    #{python $filename})
+    (display (string-append "running " filename "\n"))
+    ;; stop if one of the files failed. Assumes that successful execution causes no output.
+    (end-on-fail `(python ,filename))))
   (flatten todo-list))
 
 ;; renew hashes in .last_version.txt
 (define out-string (string-join
-  (dict-map file-to-hash (lambda (filename hash)
-    (string-append hash " " filename)))
+  (map (lambda (filename)
+         (let ([line-list (string-split #{md5sum $filename})])
+           (string-append (car line-list) " " filename)))
+       (dict-keys file-to-hash))
   "\n"))
 echo $out-string &>! .last_version.txt
+echo Done
