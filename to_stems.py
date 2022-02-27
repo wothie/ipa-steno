@@ -4,7 +4,7 @@ from affix_rules import prefixes, suffixes
 from to_notation import count_syllables
 
 
-# Order by length to get the most significant affixes first.
+# Order by length of the english affix to get the most significant affixes first.
 prefixes_sorted = sorted(prefixes, key=lambda x: len(x[0][0]), reverse=True)
 suffixes_sorted = sorted(suffixes, key=lambda x: len(x[0][0]), reverse=True)
 
@@ -32,7 +32,7 @@ def edit_affix(english, ipa, edit, mode):
         ipa = ipa[:-len(remove_ipa)] + add_ipa
 
     # If return None if the result doesn't exist in the dictionary
-    if not english in eng_to_ipa_dict:
+    if not english in eng_to_ipa_dict or not ipa in eng_to_ipa_dict[english]:
         return None
 
     return english, ipa
@@ -45,39 +45,36 @@ def strip_affix(english):
     the first or last tuple may be None, but not both
     If nothing can be reduced, an empty list is returned
     """
-    prefix_result = None
-    suffix_result = None
-    stripped_english = english
     # Define single-syllable words if all ipas have one syllable
     if all([count_syllables(ipa) == 1 for ipa in eng_to_ipa_dict[english]]):
-        return english, None, stripped_ipas, None
+        return []
 
     # start with the unedited versions
-    possible_splits = [(None, (english, ipa), None) for ipa in eng_to_ipa_dict[english]]
+    possible_splits = [[None, (english, ipa), None] for ipa in eng_to_ipa_dict[english]]
     unedited_length = len(possible_splits)
 
-    for _, (english, ipa), _ in possible_splits:
+    for _, (english, ipa), _ in possible_splits[:]:
         for prefix_versions in prefixes_sorted:
             for prefix, ipa_prefix, edits in prefix_versions:
                 # Don't strip whole affixes
                 if english == prefix:
-                    # possible_splits at this point could have already reduced it, so we recompute.
-                    return [(None, (english, ipa), None) for ipa in eng_to_ipa_dict[english]]
+                    return []
                 if english.startswith(prefix):
                     # check all edits for every combination
-                    possible_splits += [((prefix, ipa_prefix), edit_affix(english, ipa, edit, 'prefix'), None)
+                    possible_splits += [[(prefix, ipa_prefix), edit_affix(english, ipa, edit, 'prefix'), None]
                                         for edit in edits]
 
-    for prefix_bundle, (english, ipa), _ in possible_splits:
+    # only retain the elements where the middle isn't None as those signal failed edits
+    possible_splits = [x for x in possible_splits if x[1]]
+    for prefix_pair, (english, ipa), _ in possible_splits[:]:
         for suffix_versions in suffixes_sorted:
             for suffix, ipa_suffix, edits in suffix_versions:
                 # Don't strip whole affixes
                 if english == suffix:
-                    # possible_splits at this point could have already reduced it, so we recompute.
-                    return [(None, (english, ipa), None) for ipa in eng_to_ipa_dict[english]]
+                    return []
                 if english.endswith(suffix):
                     # check all edits for every combination
-                    possible_splits += [(prefix_bundle, edit_affix(english, ipa, edit, 'suffix'), (suffix, ipa_suffix)
+                    possible_splits += [[prefix_pair, edit_affix(english, ipa, edit, 'suffix'), (suffix, ipa_suffix)]
                                         for edit in edits]
 
     # Remove the unedited versions from the list

@@ -102,6 +102,9 @@ def find_longest(word):
     results = list(filter(lambda x: len(x) == len(results[0]), results))
     # prefer diphthongs
     results = sorted(results, key=lambda ipa: len(list(filter(lambda x: x in 'ƐӔƆUꞮɅƏ', ipa))), reverse=True)
+    if not results:
+        # We found a word without syllables
+        return None
     return results[0]
 
 
@@ -110,6 +113,7 @@ if __name__=='__main__':
     out_file.write('eng_to_notation_dict = {\n')
     for english, ipa_list in eng_to_simp_ipa_dict.items():
         results = [find_longest(ipa) for ipa in ipa_list]
+        results = list(filter(lambda x: x, results))
         results = sorted(results, key=len, reverse=True)
         out_file.write('"{}": "{}",\n'.format(english, results[0]))
     out_file.write('}')
