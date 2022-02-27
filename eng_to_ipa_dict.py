@@ -791,7 +791,7 @@ eng_to_ipa_dict = {
 "actress's": ['æktɹʌsɪz'],
 "actresses": ['æktɹʌsɪz'],
 "acts": ['ækts', 'æks'],
-"actual": ['ækʃʌl', 'ækʧʌwʌl'],
+"actual": ['ækʧuʌl', 'ækʧuæl'],
 "actuality": ['ækʧuælʌti'],
 "actualize": ['ækʧuʌlajz'],
 "actually": ['ækʧuʌli', 'ækʧli', 'ækʃʌli'],
