@@ -12,14 +12,15 @@
     - from those, build a dictionary from english to steno notation, ordered by frequency
     - reverse the dictionary to go from steno to a list of english words(, maybe annotate each word with its frequency)
     - split each entry, so each steno is only associated with one english word, making use of the numbers 1-3 for conflicting entries. Also keep a list of rejected words
-    * disallow single-letter notation
-    * revise how words with affixes are stripped to produce more valid words
-        * then only strip and reject words if the result is valid, which allows for more short affixes to be used.
+    - disallow single-letter notation
+    - revise how words with affixes are stripped to produce more valid words
+        - then only strip and reject words if the result is valid, which allows for more short affixes to be used.
         * expand the tsh and dsh sounds while doing that
-    * think about trying to detect compound words like "downgrade"
-        * would remove a lot of words from single-stroke, but also make things clearer
-        * list all rejected words by their composition, in ipa and english
+    - think about trying to detect compound words like "downgrade"
+        - would remove a lot of words from single-stroke, but also make things clearer
+        - list all rejected words by their composition, in ipa and english
         * create strokes for the affixes probably (not sure if necessary, but probably useful)
+        * fix bugs, so stems can only be minimal stems
     * build dictionary from steno notation to Plover notation
     * finally, build the dictionary from Plover to English
 * multi-stroke dictionary

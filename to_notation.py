@@ -85,6 +85,10 @@ def to_notation(beginning, middle, end, left_syllable, right_syllable):
     result += end
     result += '_' if right_syllable else ''
 
+    # Disallow single-letter notation, as single-key-presses should be mapped to letters, not words
+    if len(result) == 1:
+        result += 'h'
+
     return result
 
 
@@ -103,7 +107,7 @@ def find_longest(word):
     # prefer diphthongs
     results = sorted(results, key=lambda ipa: len(list(filter(lambda x: x in 'ƐӔƆUꞮɅƏ', ipa))), reverse=True)
     if not results:
-        # We found a word without syllables
+        # We found a word without syllables. Thanks, dictionary
         return None
     return results[0]
 

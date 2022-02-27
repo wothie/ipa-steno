@@ -3,6 +3,10 @@ from counted_english import counted_english
 from affix_rules import prefixes, suffixes
 from to_notation import count_syllables
 
+from suffix_trees.STree import STree
+from itertools import product
+from more_itertools import intersperse
+
 
 # Order by length of the english affix to get the most significant affixes first.
 prefixes_sorted = sorted(prefixes, key=lambda x: len(x[0][0]), reverse=True)
@@ -31,7 +35,7 @@ def edit_affix(english, ipa, edit, mode):
         english = english[:-len(remove_english)] + add_english
         ipa = ipa[:-len(remove_ipa)] + add_ipa
 
-    # If return None if the result doesn't exist in the dictionary
+    # Return None if the result doesn't exist in the dictionary
     if not english in eng_to_ipa_dict or not ipa in eng_to_ipa_dict[english]:
         return None
 
@@ -122,28 +126,113 @@ def strip_affixes(english):
     return result
 
 
+def word_at(string, index, sep='|'):
+    """
+    for string from sep.join([words]), where none of words contains sep returns the word which
+    index falls into
+    """
+    start_index = string.rfind(sep, 0, index)
+    end_index = string.find(sep, index)
+    return string[start_index+1:end_index]
+
+
+def recurse_compounds(splits, compounds):
+    """
+    expects a [(<english>, <ipa>)] and a dictionary as generated in split_compounds
+    returns a new list which is broken down as far as possible into compounds
+    If used in sequence, the iterator should sort stems from shortest to longest
+    """
+    result = []
+    for split in splits:
+        result += [[]]
+        for stem, ipa in split:
+            if stem not in compounds or not compounds[stem]:
+                # this stem cannot be reduced further
+                result[-1] += [(stem, ipa)]
+            else:
+                result[-1] += compounds[stem]
+    return result
+
+def split_compounds(stems):
+    """
+    Creates a suffix_tree for english to test whether one stem is made up of several others.
+    Return format: <english>: [[(<english_part>, <ipa_part>)]]
+    If the stem couldn't be split, its entry will be an empty list.
+    If it could be split, only the ipa_options that allowed the split are kept
+    """
+    # Create large string of all stems to find words again later
+    sorted_stems = sorted(stems, key=len)
+    stems_string = '|'.join(sorted_stems) + '|'
+    stems_tree = STree(stems_string)
+    result = {stem: [] for stem in stems}
+
+    for stem in sorted_stems:
+        # Reject the first match, as we sorted the stems by length, so the first match is stem itself
+        matches = [word_at(stems_string, index) for index in sorted(stems_tree.find_all(stem))][1:]
+        if not matches:
+            # stem isn't substring of anything
+            continue
+        # Check that match\stem still equals a valid stem
+        splits = [list(filter(str.strip, intersperse(stem, (single_match.split(stem)))))
+                  for single_match in matches]
+        # First check that the parts appear in the dictionary
+        splits = list(filter(lambda split: all([part in eng_to_ipa_dict for part in split]), splits))
+        # Then check that there is some valid ipa parts
+        # Construct all combinations of ipa_parts and check if they equal the ipa_stem
+        ipa_splits = [[eng_to_ipa_dict[part] for part in split] for split in splits]
+        ipa_splits = [product(*ipa_versions) for ipa_versions in ipa_splits]
+
+        for ipa_split, split in zip(ipa_splits, splits):
+            # Each ipa_split has several versions, each a tuple of strings
+            # i.e. ipa_split: [("ipa_part",)]
+            for ipa_version in ipa_split:
+                # Check that the concatenation of all parts is a valid ipa spelling for the match
+                if ''.join(ipa_version) not in eng_to_ipa_dict[''.join(split)]:
+                    # doesn't combine to a valid word, so ignore
+                    continue
+                # The result will include one entry for each possible spelling of the same split
+                # Check for duplicates from the other stems
+                if list(zip(split, ipa_version)) not in result[''.join(split)]:
+                    result[''.join(split)] += [list(zip(split, ipa_version))]
+
+    for stem, splits in result.items():
+        result[stem] = recurse_compounds(splits, result)
+    return result
+
+
 if __name__=='__main__':
     #accepted = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
     #            if english in eng_to_ipa_dict.keys()}
+    stems    = {}
     accepted = {}
     rejected = {}
     todo = [english for english, _ in counted_english if english in eng_to_ipa_dict.keys()]
 
+    # Strip all words of their affixes if they have any
     for english in todo:
         # Only allowed single-letter words are I and a
         # Those don't even have to get rejected as they won't be multi-stroke either
         if len(english) == 1 and english not in 'ia':
             continue
         possible_splits = strip_affixes(english)
-        # If there are no possible_splits, the word is accepted.
+        # If there are no possible_splits, the word is a stem.
         if not possible_splits:
-            accepted[english] = eng_to_ipa_dict[english]
+            stems[english] = eng_to_ipa_dict[english]
         else:
-            # try to get the split with the fewest elements to minimize strokes
-            # First, flatten each split
-            possible_splits = [prefix_bundle + [stem] + suffix_bundle
-                               for prefix_bundle, stem, suffix_bundle in possible_splits]
-            rejected[english] = sorted(possible_splits, key=len)[0]
+            rejected[english] = possible_splits
+
+    # Check for compound words in stems. Stems can only be made up of other stems
+    # Keep a dict from full to compound to also handle splitting the stems of rejected words
+    compounds = split_compounds(stems)
+    for stem, splits in compounds.items():
+        if not splits:
+            # Couldn't be split. Truly a single-stroke worthy candidate
+            accepted[stem] = eng_to_ipa_dict[stem]
+        else:
+            # Wasn't so stemmy after all.
+            # Try to minimize strokes by using shorter splits.
+            # By recurse_compounds, all parts should already be accepted
+            rejected[stem] = sorted(splits, key=len)[0]
 
     # write output
     out_file = open('eng_stems_to_ipa_dict.py', 'w')
