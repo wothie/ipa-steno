@@ -20,7 +20,13 @@
         - would remove a lot of words from single-stroke, but also make things clearer
         - list all rejected words by their composition, in ipa and english
         * create strokes for the affixes probably (not sure if necessary, but probably useful)
-        * fix bugs, so stems can only be minimal stems
     * build dictionary from steno notation to Plover notation
+        * find better keyboard layout
+        * get more rows into plover
     * finally, build the dictionary from Plover to English
 * multi-stroke dictionary
+
+* bugs and improvements
+    * fix bugs, so stems can only be minimal stems
+    * use suffix trees for the affixes as well
+    - make it stop thinking that 'b' is a valid word

@@ -92,7 +92,7 @@ def strip_affixes(english):
     """
     Iteratively tries to strip affixes until none are left or the resulting word isn't a word anymore.
     Only the deepest level with any valid words remains
-    Output format: [[(<prefix>, <prefix_ipa>)], (<stem>, <stem_api>), [(<suffix>, <suffix_ipa>)]]
+    Output format: [[("part", "ipa_part")]]
     If nothing could be reduced, returns the empty list
     """
     # Try to strip one level off
@@ -123,7 +123,9 @@ def strip_affixes(english):
         # Else we try one more level
         result = intermediate_result
 
-    return result
+    # flatten the result
+    return [prefix_bundle + [(english, ipa)] + suffix_bundle
+            for prefix_bundle, (english, ipa), suffix_bundle in result]
 
 
 def word_at(string, index, sep='|'):
@@ -144,13 +146,18 @@ def recurse_compounds(splits, compounds):
     """
     result = []
     for split in splits:
-        result += [[]]
+        intermediate_result = [[]]
         for stem, ipa in split:
             if stem not in compounds or not compounds[stem]:
                 # this stem cannot be reduced further
-                result[-1] += [(stem, ipa)]
+                intermediate_result = [intermediate_part + [(stem, ipa)]
+                                       for intermediate_part in intermediate_result]
             else:
-                result[-1] += compounds[stem]
+                # all combinations to spell all splits
+                intermediate_result = [intermediate_part + compound
+                                       for intermediate_part in intermediate_result
+                                       for compound in compounds[stem]]
+        result += intermediate_result
     return result
 
 def split_compounds(stems):
@@ -180,7 +187,7 @@ def split_compounds(stems):
         # Then check that there is some valid ipa parts
         # Construct all combinations of ipa_parts and check if they equal the ipa_stem
         ipa_splits = [[eng_to_ipa_dict[part] for part in split] for split in splits]
-        ipa_splits = [product(*ipa_versions) for ipa_versions in ipa_splits]
+        ipa_splits = [list(product(*ipa_versions)) for ipa_versions in ipa_splits]
 
         for ipa_split, split in zip(ipa_splits, splits):
             # Each ipa_split has several versions, each a tuple of strings
@@ -210,10 +217,6 @@ if __name__=='__main__':
 
     # Strip all words of their affixes if they have any
     for english in todo:
-        # Only allowed single-letter words are I and a
-        # Those don't even have to get rejected as they won't be multi-stroke either
-        if len(english) == 1 and english not in 'ia':
-            continue
         possible_splits = strip_affixes(english)
         # If there are no possible_splits, the word is a stem.
         if not possible_splits:
@@ -224,6 +227,7 @@ if __name__=='__main__':
     # Check for compound words in stems. Stems can only be made up of other stems
     # Keep a dict from full to compound to also handle splitting the stems of rejected words
     compounds = split_compounds(stems)
+    rejected_compounds = {}
     for stem, splits in compounds.items():
         if not splits:
             # Couldn't be split. Truly a single-stroke worthy candidate
@@ -232,7 +236,14 @@ if __name__=='__main__':
             # Wasn't so stemmy after all.
             # Try to minimize strokes by using shorter splits.
             # By recurse_compounds, all parts should already be accepted
-            rejected[stem] = sorted(splits, key=len)[0]
+            rejected_compounds[stem] = splits
+    # Same deal for the rejected ones, as they are only split by affixes now
+    for stem, splits in rejected.items():
+        # Using compounds as reference should be enough, as the parts in rejected
+        # are all in stems.keys()
+        rejected[stem] = recurse_compounds(splits, compounds)
+    # Combine the affix-rejected and the compound-rejected words
+    rejected = dict(rejected, **rejected_compounds)
 
     # write output
     out_file = open('eng_stems_to_ipa_dict.py', 'w')
@@ -242,7 +253,7 @@ if __name__=='__main__':
         out_file.write('{}: {},\n'.format(repr(key), val))
     out_file.write('}\n')
 
-    out_file.write('rejected = {\n')
+    out_file.write('compound = {\n')
     for key, val in rejected.items():
         out_file.write('{}: {},\n'.format(repr(key), val))
     out_file.write('}')
