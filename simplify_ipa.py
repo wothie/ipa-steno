@@ -1,5 +1,5 @@
 from vowels_and_consonants import vowels, consonants, diphthongs, triphthongs
-from eng_stems_to_ipa_dict import eng_stems_to_ipa_dict
+from eng_stems_to_ipa_dict import stems, compounds
 import sys
 
 
@@ -31,14 +31,20 @@ def replace(c):
 if __name__=='__main__':
     out_file = open('eng_to_simp_ipa_dict.py', 'w')
 
-    out_file.write('eng_to_simp_ipa_dict = {\n')
-    for english, ipa_list in eng_stems_to_ipa_dict.items():
+    out_file.write('stems = {\n')
+    for english, ipa in stems.items():
+        ipa = replace_clusters(ipa)
+        ipa = ''.join(map(replace, ipa))
+        out_file.write('{}: {},\n'.format(repr(english), repr(ipa)))
+    out_file.write('}\n')
+    out_file.write('compounds = {\n')
+    for english, ipa_list in compounds.items():
         result = []
-        for ipa in ipa_list:
-            ipa = replace_clusters(ipa)
-            ipa = ''.join(map(replace, ipa))
-            result += [ipa]
-        out_file.write('\"{}\": {},\n'.format(english, result))
+        for english_part, ipa_part in ipa_list:
+            ipa_part = replace_clusters(ipa_part)
+            ipa_part = ''.join(map(replace, ipa_part))
+            result += [(english_part, ipa_part)]
+        out_file.write('{}: {},\n'.format(repr(english), repr(result)))
     out_file.write('}')
 
     out_file.close()

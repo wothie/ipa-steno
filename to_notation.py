@@ -1,19 +1,7 @@
 from vowels_and_consonants import vowels, consonants
-from eng_to_simp_ipa_dict import eng_to_simp_ipa_dict
+from eng_to_simp_ipa_dict import stems, compounds
+from count_syllables import count_syllables
 from sys import stdin
-
-
-def count_syllables(word):
-    count = 0
-    in_cluster = False
-    for c in word:
-        if c in vowels:
-            if not in_cluster:
-                count += 1
-            in_cluster = True
-        elif c in consonants:
-            in_cluster = False
-    return count
 
 
 def split_at(word, index):
@@ -113,11 +101,14 @@ def find_longest(word):
 
 
 if __name__=='__main__':
+    # Translate each stem
+    notation = {english: find_longest(ipa) for english, ipa in stems.items()}
+    # Now the compounds
+    for english, split in compounds.items():
+        notation[english] = '-'.join([notation[stem] for stem, _ in split])
+
     out_file = open('eng_to_notation_dict.py', 'w')
     out_file.write('eng_to_notation_dict = {\n')
-    for english, ipa_list in eng_to_simp_ipa_dict.items():
-        results = [find_longest(ipa) for ipa in ipa_list]
-        results = list(filter(lambda x: x, results))
-        results = sorted(results, key=len, reverse=True)
-        out_file.write('"{}": "{}",\n'.format(english, results[0]))
+    for english, notation in notation.items():
+        out_file.write('{}: {},\n'.format(repr(english), repr(notation)))
     out_file.write('}')

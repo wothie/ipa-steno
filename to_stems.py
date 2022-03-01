@@ -1,7 +1,7 @@
 from eng_to_ipa_dict import eng_to_ipa_dict
 from counted_english import counted_english
 from affix_rules import prefixes, suffixes
-from to_notation import count_syllables
+from count_syllables import count_syllables
 
 from suffix_trees.STree import STree
 from itertools import product
@@ -208,11 +208,11 @@ def split_compounds(stems):
 
 
 if __name__=='__main__':
-    #accepted = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
+    #stems = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
     #            if english in eng_to_ipa_dict.keys()}
-    stems    = {}
-    accepted = {}
-    rejected = {}
+    affix_free    = {}
+    stems = {}
+    affixed = {}
     todo = [english for english, _ in counted_english if english in eng_to_ipa_dict.keys()]
 
     # Strip all words of their affixes if they have any
@@ -220,42 +220,48 @@ if __name__=='__main__':
         possible_splits = strip_affixes(english)
         # If there are no possible_splits, the word is a stem.
         if not possible_splits:
-            stems[english] = eng_to_ipa_dict[english]
+            affix_free[english] = eng_to_ipa_dict[english]
         else:
-            rejected[english] = possible_splits
+            affixed[english] = possible_splits
 
-    # Check for compound words in stems. Stems can only be made up of other stems
-    # Keep a dict from full to compound to also handle splitting the stems of rejected words
-    compounds = split_compounds(stems)
-    rejected_compounds = {}
-    for stem, splits in compounds.items():
+    # Check for compound words in affix_free. Stems can only be made up of other affix_free
+    # Keep a dict from full to compound to also handle splitting the affix_free of affixed words
+    decomposed = split_compounds(affix_free)
+    compounds = {}
+    for stem, splits in decomposed.items():
         if not splits:
             # Couldn't be split. Truly a single-stroke worthy candidate
-            accepted[stem] = eng_to_ipa_dict[stem]
+            # Just take the first version for now
+            stems[stem] = eng_to_ipa_dict[stem][0]
         else:
             # Wasn't so stemmy after all.
             # Try to minimize strokes by using shorter splits.
-            # By recurse_compounds, all parts should already be accepted
-            rejected_compounds[stem] = splits
-    # Same deal for the rejected ones, as they are only split by affixes now
-    for stem, splits in rejected.items():
-        # Using compounds as reference should be enough, as the parts in rejected
-        # are all in stems.keys()
-        rejected[stem] = recurse_compounds(splits, compounds)
-    # Combine the affix-rejected and the compound-rejected words
-    rejected = dict(rejected, **rejected_compounds)
+            # By recurse_decomposed, all parts should already be accepted
+            compounds[stem] = splits[0]
+    # Same deal for the affixed ones, as they are only split by affixes now
+    for stem, splits in affixed.items():
+        # Using decomposed as reference should be enough, as the parts in affixed
+        # are all in affix_free.keys()
+        compounds[stem] = recurse_compounds(splits, decomposed)[0]
+    # Add pre- and suffixes themselves as stems
+    # Also just take the first ipa option for each of them for now
+    for entry in prefixes:
+        english, ipa, _ = entry[0]
+        stems[english] = ipa
+    for entry in suffixes:
+        english, ipa, _ = entry[0]
+        stems[english] = ipa
 
     # write output
     out_file = open('eng_stems_to_ipa_dict.py', 'w')
 
-    out_file.write('eng_stems_to_ipa_dict = {\n')
-    for key, val in accepted.items():
-        out_file.write('{}: {},\n'.format(repr(key), val))
+    out_file.write('stems = {\n')
+    for key, val in stems.items():
+        out_file.write('{}: {},\n'.format(repr(key), repr(val)))
     out_file.write('}\n')
-
-    out_file.write('compound = {\n')
-    for key, val in rejected.items():
-        out_file.write('{}: {},\n'.format(repr(key), val))
+    out_file.write('compounds = {\n')
+    for key, val in compounds.items():
+        out_file.write('{}: {},\n'.format(repr(key), repr(val)))
     out_file.write('}')
 
     out_file.close()

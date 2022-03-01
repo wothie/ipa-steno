@@ -30,3 +30,5 @@
     * fix bugs, so stems can only be minimal stems
     * use suffix trees for the affixes as well
     - make it stop thinking that 'b' is a valid word
+    * fix multiplicity. i.e. use data from counted_english for affixes/compounds
+    * make decomposition of words better. affixed and affix_free words are too separate
