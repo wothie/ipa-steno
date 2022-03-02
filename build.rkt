@@ -6,8 +6,7 @@
 (require racket/list)
 
 (define file-deps '(("eng_to_ipa_dict.py")
-                    ("count.py")
-                    ("counted_english.py" "affix_rules.py")
+                    ("affix_rules.py")
                     ("to_stems.py")
                     ("vowels_and_consonants.py" "eng_stems_to_ipa_dict.py")
                     ("simplify_ipa.py")
