@@ -20,8 +20,7 @@ if __name__=='__main__':
     # Save those were 4 levels of disambiguation didn't suffice
     rejected = {}
 
-    # For now use word length as preference
-    for english, options in sorted(eng_to_notation_dict.items(), key=lambda x: len(x[0])):
+    for english, options in eng_to_notation_dict.items():
         uniqueness = [smallest_disambiguation(option, result) for option in options]
         # Get index of smallest value, i.e. most unique notation
         notation, disambiguation = sorted(zip(options, uniqueness), key=lambda x: x[1])[0]

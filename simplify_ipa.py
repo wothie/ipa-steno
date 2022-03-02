@@ -1,5 +1,5 @@
 from vowels_and_consonants import vowels, consonants, diphthongs, triphthongs
-from eng_stems_to_ipa_dict import eng_stems_to_ipa_dict
+from eng_composition_sorted import eng_composition_sorted
 from eng_to_ipa_dict import eng_to_ipa_dict
 from affix_rules import prefixes, suffixes
 import sys
@@ -42,11 +42,11 @@ if __name__=='__main__':
         for english, ipa, _ in rule:
             suffix_ipas[english] += [ipa]
 
-    for english, splits in eng_stems_to_ipa_dict.items():
-        # eng_stems_to_ipa_dict will include some affixes
+    for english, splits in eng_composition_sorted.items():
+        # eng_composition_sorted will include some affixes
         for split in splits:
             for part in split:
-                # eng_stems_to_ipa_dict has affixes as well, so we assume that every stem is in one of them
+                # eng_composition_sorted has affixes as well, so we assume that every stem is in one of them
                 if part not in eng_to_ipa_dict and part not in prefix_ipas:
                     eng_to_ipa_dict[part] = suffix_ipas[part]
                 elif part not in eng_to_ipa_dict and part not in suffix_ipas:
@@ -62,7 +62,6 @@ if __name__=='__main__':
             stems[english] = result
         else:
             compounds[english] = result
-
     out_file = open('eng_to_simp_ipa_dict.py', 'w')
     out_file.write('stems = {\n')
     for english, splits in stems.items():

@@ -154,8 +154,8 @@ if __name__=='__main__':
         composition[english] = result                  
 
     # write output
-    out_file = open('eng_stems_to_ipa_dict.py', 'w')
-    out_file.write('eng_stems_to_ipa_dict = {\n')
+    out_file = open('eng_composition.py', 'w')
+    out_file.write('eng_composition= {\n')
     for key, val in composition.items():
         out_file.write('{}: {},\n'.format(repr(key), repr(val)))
     out_file.write('}')
