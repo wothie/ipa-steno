@@ -1,7 +1,6 @@
 from vowels_and_consonants import vowels, consonants
 from eng_to_simp_ipa_dict import stems, compounds
 from count_syllables import count_syllables
-from sys import stdin
 
 
 def split_at(word, index):
@@ -95,17 +94,27 @@ def find_longest(word):
     # prefer diphthongs
     results = sorted(results, key=lambda ipa: len(list(filter(lambda x: x in 'ƐӔƆUꞮɅƏ', ipa))), reverse=True)
     if not results:
-        # We found a word without syllables. Thanks, dictionary
-        return None
+        # We found a word without syllables. probably an affix
+        # Go inward-out with the consonants
+        return to_notation(word[:len(word)//2], '', word[len(word)//2:], False, False)
+
     return results[0]
 
 
 if __name__=='__main__':
     # Translate each stem
-    notation = {english: find_longest(ipa) for english, ipa in stems.items()}
+    ipa_to_notation = {ipa: find_longest(ipa) for ipas in stems.values() for ipa in ipas}
+    notation = {english: [ipa_to_notation[ipa] for ipa in ipas] for english, ipas in stems.items()}
     # Now the compounds
-    for english, split in compounds.items():
-        notation[english] = '-'.join([notation[stem] for stem, _ in split])
+    for english, splits in compounds.items():
+        result = []
+        for split in splits:
+            intermediate = [[]]
+            for part in split:
+                intermediate = [subintermediate + [ipa_to_notation[part]]
+                                for subintermediate in intermediate]
+            result += ['-'.join(subintermediate) for subintermediate in intermediate]
+        notation[english] = result
 
     out_file = open('eng_to_notation_dict.py', 'w')
     out_file.write('eng_to_notation_dict = {\n')

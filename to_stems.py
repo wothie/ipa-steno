@@ -1,131 +1,56 @@
 from eng_to_ipa_dict import eng_to_ipa_dict
-from counted_english import counted_english
 from affix_rules import prefixes, suffixes
-from count_syllables import count_syllables
 
 from suffix_trees.STree import STree
-from itertools import product
-from more_itertools import intersperse
 
 
-# Order by length of the english affix to get the most significant affixes first.
-prefixes_sorted = sorted(prefixes, key=lambda x: len(x[0][0]), reverse=True)
-suffixes_sorted = sorted(suffixes, key=lambda x: len(x[0][0]), reverse=True)
-
-
-def edit_affix(english, ipa, edit, mode):
+def edit_affix(english, ipa, affix, edit, mode):
     """
     edit format: ((<remove_english>, <add_english>), (<remove_ipa>, <add_ipa>))
-    returns edited (english, ipa) if the edit applies else (None, None)
+    for mode=='infix' edit is a list of two elements, each of the above once
+    returns edited english if the edit applies else None
     if suffix, the edits are applied to the end, else the front
     """
-    (remove_english, add_english), (remove_ipa, add_ipa) = edit
-    if mode=='prefix':
-        # prefix
-        if not english.startswith(remove_english) or not ipa.startswith(remove_ipa):
-            # edit doesn't apply
-            return None
-        english = add_english + english[len(remove_english):]
-        ipa = add_ipa + ipa[len(remove_ipa):]
-    elif mode=='suffix':
-        # suffix
-        if not english.endswith(remove_english) or not ipa.endswith(remove_ipa):
-            # edit doesn't apply
-            return None
-        english = english[:-len(remove_english)] + add_english
-        ipa = ipa[:-len(remove_ipa)] + add_ipa
+    if not affix:
+        # the edit is the same as doing nothing, but still check if word exists
+        if english in eng_to_ipa_dict and ipa in eng_to_ipa_dict[english]:
+            return [(english, english)]
+    elif mode == 'prefix':
+        (remove_english, add_english), (remove_ipa, add_ipa) = edit
+        if english.startswith(remove_english) and ipa.startswith(remove_ipa):
+            edited_english = add_english + english[len(remove_english):]
+            edited_ipa = add_ipa + ipa[len(remove_ipa):]
+            if edited_english in eng_to_ipa_dict and edited_ipa in eng_to_ipa_dict[edited_english]:
+                return [(affix, remove_english), (edited_english, english[len(remove_english):])]
+    elif mode == 'suffix':
+        (remove_english, add_english), (remove_ipa, add_ipa) = edit
+        if english.endswith(remove_english) and ipa.endswith(remove_ipa):
+            edited_english = english[:-len(remove_english)] + add_english
+            edited_ipa = ipa[:-len(remove_ipa)] + add_ipa
+            if edited_english in eng_to_ipa_dict and edited_ipa in eng_to_ipa_dict[edited_english]:
+                return [(edited_english, english[:-len(remove_english)]), (affix, remove_english)]
 
-    # Return None if the result doesn't exist in the dictionary
-    if not english in eng_to_ipa_dict or not ipa in eng_to_ipa_dict[english]:
-        return None
-
-    return english, ipa
+    return None
 
 
-def strip_affix(english):
+def edit_compound(english, ipa, stem, stem_ipa, affixes, edits):
     """
-    Remove a single prefix and/or a single suffix.
-    Output format: [(<prefix>, <prefix_ipa>), (<stem>, <stem_api>), (<suffix>, <suffix_ipa>)]
-    the first or last tuple may be None, but not both
-    If nothing can be reduced, an empty list is returned
+    similar to edit_affix.
+    stem and stem_ipa define which substring to remove. We only split the first occurence
+    edits is a list of two: one for the left remainder, one for the right one
     """
-    # Define single-syllable words if all ipas have one syllable
-    if all([count_syllables(ipa) == 1 for ipa in eng_to_ipa_dict[english]]):
-        return []
+    # only split the first occurence, as the rest can be handled later
+    split = english.split(stem, 1)
+    ipa_split = ipa.split(stem_ipa, 1)
+    if len(split) == 2 and len(ipa_split) == 2:
+        edited_start = edit_affix(split[0], ipa_split[0], affixes[0], edits[0], 'suffix')
+        edited_end = edit_affix(split[1], ipa_split[1], affixes[1], edits[1], 'prefix')
+        if (split[0] or split[1]) and (not split[0] or edited_start) and (not split[1] or edited_end):
+            first = [edited_start[0]] if edited_start else []
+            last = [edited_end[-1]] if edited_end else []
+            return first + [(stem, stem)] + last
 
-    # start with the unedited versions
-    possible_splits = [[None, (english, ipa), None] for ipa in eng_to_ipa_dict[english]]
-    unedited_length = len(possible_splits)
-
-    for _, (english, ipa), _ in possible_splits[:]:
-        for prefix_versions in prefixes_sorted:
-            for prefix, ipa_prefix, edits in prefix_versions:
-                # Don't strip whole affixes
-                if english == prefix:
-                    return []
-                if english.startswith(prefix):
-                    # check all edits for every combination
-                    possible_splits += [[(prefix, ipa_prefix), edit_affix(english, ipa, edit, 'prefix'), None]
-                                        for edit in edits]
-
-    # only retain the elements where the middle isn't None as those signal failed edits
-    possible_splits = [x for x in possible_splits if x[1]]
-    for prefix_pair, (english, ipa), _ in possible_splits[:]:
-        for suffix_versions in suffixes_sorted:
-            for suffix, ipa_suffix, edits in suffix_versions:
-                # Don't strip whole affixes
-                if english == suffix:
-                    return []
-                if english.endswith(suffix):
-                    # check all edits for every combination
-                    possible_splits += [[prefix_pair, edit_affix(english, ipa, edit, 'suffix'), (suffix, ipa_suffix)]
-                                        for edit in edits]
-
-    # Remove the unedited versions from the list
-    possible_splits = possible_splits[unedited_length:]
-    # only retain the elements where the middle isn't None as those signal failed edits
-    possible_splits = [x for x in possible_splits if x[1]]
-    return possible_splits
-
-
-def strip_affixes(english):
-    """
-    Iteratively tries to strip affixes until none are left or the resulting word isn't a word anymore.
-    Only the deepest level with any valid words remains
-    Output format: [[("part", "ipa_part")]]
-    If nothing could be reduced, returns the empty list
-    """
-    # Try to strip one level off
-    result = strip_affix(english)
-    for i in range(len(result)):
-        # Adhere to the new output format of this function compared to strip_affix
-        # Wrap prefix and suffix in a list, if given
-        result[i][0] = [result[i][0]] if result[i][0] else []
-        result[i][2] = [result[i][2]] if result[i][2] else []
-
-    while True:
-        # variable used for replacing one level with the next one
-        intermediate_result = []
-        # Iteratively go one level deeper on the previous results until nothing can be done
-        for prefix_bundle, (stripped_english, _), suffix_bundle in result:
-            # variable for tracking which entries in this level are new per loop iteration
-            old_index = len(intermediate_result)
-            intermediate_result += strip_affix(stripped_english)
-            # add pre-/suffix from previous level
-            for i in range(old_index, len(intermediate_result)):
-                new_prefix, new_suffix = intermediate_result[i][0], intermediate_result[i][2]
-                intermediate_result[i][0] = prefix_bundle + [new_prefix] if new_prefix else prefix_bundle
-                intermediate_result[i][2] = [new_suffix] + suffix_bundle if new_suffix else suffix_bundle
-
-        # If intermediate_result is empty, we couldn't reduce anything in this level and are done.
-        if not intermediate_result:
-            break
-        # Else we try one more level
-        result = intermediate_result
-
-    # flatten the result
-    return [prefix_bundle + [(english, ipa)] + suffix_bundle
-            for prefix_bundle, (english, ipa), suffix_bundle in result]
+    return None
 
 
 def word_at(string, index, sep='|'):
@@ -138,129 +63,100 @@ def word_at(string, index, sep='|'):
     return string[start_index+1:end_index]
 
 
-def recurse_compounds(splits, compounds):
-    """
-    expects a [(<english>, <ipa>)] and a dictionary as generated in split_compounds
-    returns a new list which is broken down as far as possible into compounds
-    If used in sequence, the iterator should sort stems from shortest to longest
-    """
-    result = []
-    for split in splits:
-        intermediate_result = [[]]
-        for stem, ipa in split:
-            if stem not in compounds or not compounds[stem]:
-                # this stem cannot be reduced further
-                intermediate_result = [intermediate_part + [(stem, ipa)]
-                                       for intermediate_part in intermediate_result]
-            else:
-                # all combinations to spell all splits
-                intermediate_result = [intermediate_part + compound
-                                       for intermediate_part in intermediate_result
-                                       for compound in compounds[stem]]
-        result += intermediate_result
-    return result
-
-def split_compounds(stems):
-    """
-    Creates a suffix_tree for english to test whether one stem is made up of several others.
-    Return format: <english>: [[(<english_part>, <ipa_part>)]]
-    If the stem couldn't be split, its entry will be an empty list.
-    If it could be split, only the ipa_options that allowed the split are kept
-    """
-    # Create large string of all stems to find words again later
-    sorted_stems = sorted(stems, key=len)
-    stems_string = '|'.join(sorted_stems) + '|'
-    stems_tree = STree(stems_string)
-    result = {stem: [] for stem in stems}
-
-    for stem in sorted_stems:
-        # Reject the first match, as we sorted the stems by length, so the first match is stem itself
-        matches = [word_at(stems_string, index) for index in sorted(stems_tree.find_all(stem))][1:]
-        if not matches:
-            # stem isn't substring of anything
-            continue
-        # Check that match\stem still equals a valid stem
-        splits = [list(filter(str.strip, intersperse(stem, (single_match.split(stem)))))
-                  for single_match in matches]
-        # First check that the parts appear in the dictionary
-        splits = list(filter(lambda split: all([part in eng_to_ipa_dict for part in split]), splits))
-        # Then check that there is some valid ipa parts
-        # Construct all combinations of ipa_parts and check if they equal the ipa_stem
-        ipa_splits = [[eng_to_ipa_dict[part] for part in split] for split in splits]
-        ipa_splits = [list(product(*ipa_versions)) for ipa_versions in ipa_splits]
-
-        for ipa_split, split in zip(ipa_splits, splits):
-            # Each ipa_split has several versions, each a tuple of strings
-            # i.e. ipa_split: [("ipa_part",)]
-            for ipa_version in ipa_split:
-                # Check that the concatenation of all parts is a valid ipa spelling for the match
-                if ''.join(ipa_version) not in eng_to_ipa_dict[''.join(split)]:
-                    # doesn't combine to a valid word, so ignore
-                    continue
-                # The result will include one entry for each possible spelling of the same split
-                # Check for duplicates from the other stems
-                if list(zip(split, ipa_version)) not in result[''.join(split)]:
-                    result[''.join(split)] += [list(zip(split, ipa_version))]
-
-    for stem, splits in result.items():
-        result[stem] = recurse_compounds(splits, result)
-    return result
-
-
 if __name__=='__main__':
-    #stems = {english: eng_to_ipa_dict[english] for english, _ in counted_english[:1000]
-    #            if english in eng_to_ipa_dict.keys()}
-    affix_free    = {}
-    stems = {}
-    affixed = {}
-    todo = [english for english, _ in counted_english if english in eng_to_ipa_dict.keys()]
+    # End goal: dict from word to composition
+    # Intermediate: dict from word to words its in. Works well with suffix trees
+    # Basically turn intermediate around and select which decomposition to use.
 
-    # Strip all words of their affixes if they have any
-    for english in todo:
-        possible_splits = strip_affixes(english)
-        # If there are no possible_splits, the word is a stem.
-        if not possible_splits:
-            affix_free[english] = eng_to_ipa_dict[english]
-        else:
-            affixed[english] = possible_splits
+    # Build suffix tree of all words
+    words_string = '|' + '|'.join([english for (english, _, _), *_ in prefixes] +
+                         [english for (english, _, _), *_ in suffixes] +
+                         [english for english in eng_to_ipa_dict]) + '|'
+    suffix_tree = STree(words_string)
+    # New dictionary that includes affixes
+    ipas = dict(eng_to_ipa_dict, **dict(
+                {versions[0][0]: [ipa for _, ipa, _ in versions] for versions in prefixes + suffixes}))
+    inverse_composition = {}
+    for affixes, mode, separator_func, index_func in [
+        (prefixes, 'prefix', lambda x: '|' + x, lambda x: x+1),
+        (suffixes, 'suffix', lambda x: x + '|', lambda x: x)]:
 
-    # Check for compound words in affix_free. Stems can only be made up of other affix_free
-    # Keep a dict from full to compound to also handle splitting the affix_free of affixed words
-    decomposed = split_compounds(affix_free)
-    compounds = {}
-    for stem, splits in decomposed.items():
+        for versions in affixes:
+            # The english is the same in every case
+            english, _, _ = versions[0]
+            # Find matches
+            matches = [word_at(words_string, index_func(index))
+                       for index in suffix_tree.find_all(separator_func(english))]
+            # Remove the affix itself
+            matches.remove(english)
+            edited_matches = [edit_affix(match_english, match_ipa, affix, edit, mode)
+                              for match_english in matches
+                              for match_ipa in ipas[match_english]
+                              for affix, _, edits in versions
+                              for edit in edits]
+            # edit_affix returns None when the edit is invalid
+            # also remove ipa for now, we don't claim him
+            edited_matches = [x for x in edited_matches if x]
+            inverse_composition[english] = edited_matches
+
+    # Now for the normal words
+    for english, word_ipas in eng_to_ipa_dict.items():
+        # give a minimum size to stems, otherwise we get words split up into syllables or less
+        if len(english) < 5:
+            inverse_composition[english] = []
+            continue
+        matches = [word_at(words_string, index)
+                   for index in suffix_tree.find_all(english)]
+        # Remove the affix itself
+        matches.remove(english)
+        edited_matches = [edit_compound(match_english, match_ipa, english, ipa,
+                              # for now, we don't have any sophisticated edits
+                              ['', ''],
+                              [(('', ''), ('', '')), (('', ''), ('', ''))])
+                          for match_english in matches
+                          for match_ipa in ipas[match_english]
+                          for ipa in word_ipas]
+        # Removes Nones
+        edited_matches = [x for x in edited_matches if x]
+        inverse_composition[english] = edited_matches
+
+    # Invert the dictionary to get the form we want
+    composition = {english: [] for english in inverse_composition.keys()}
+    for splits in inverse_composition.values():
+        for split in splits:
+            stems = [part[0] for part in split]
+            original = ''.join([part[1] for part in split])
+            composition[original] += [stems]
+
+    # Now each word is split into 0-3 parts. Break each of those down as far as possible.
+    # Also the stems aren't assigned yet.
+    # By sorting length-wise we make sure that all values we access have already been refined.
+    for english, splits in sorted(composition.items(), key=lambda x: len(x[0])):
+        result = []
         if not splits:
-            # Couldn't be split. Truly a single-stroke worthy candidate
-            # Just take the first version for now
-            stems[stem] = eng_to_ipa_dict[stem][0]
-        else:
-            # Wasn't so stemmy after all.
-            # Try to minimize strokes by using shorter splits.
-            # By recurse_decomposed, all parts should already be accepted
-            compounds[stem] = splits[0]
-    # Same deal for the affixed ones, as they are only split by affixes now
-    for stem, splits in affixed.items():
-        # Using decomposed as reference should be enough, as the parts in affixed
-        # are all in affix_free.keys()
-        compounds[stem] = recurse_compounds(splits, decomposed)[0]
-    # Add pre- and suffixes themselves as stems
-    # Also just take the first ipa option for each of them for now
-    for entry in prefixes:
-        english, ipa, _ = entry[0]
-        stems[english] = ipa
-    for entry in suffixes:
-        english, ipa, _ = entry[0]
-        stems[english] = ipa
+            result = [[english]]
+        for split in splits:
+            intermediate_result = [[]]
+            for part in split:
+                if part not in composition or not composition[part]:
+                    # this part cannot be reduced further
+                    intermediate_result = [intermediate_part + [part]
+                                           for intermediate_part in intermediate_result]
+                else:
+                    # all combinations to spell all splits
+                    intermediate_result = [intermediate_part + subpart
+                                           for intermediate_part in intermediate_result
+                                           for subpart in composition[part]]
+            # There will be duplicates on some words
+            for split in intermediate_result:
+                if split not in result:
+                    result += [split]
+        composition[english] = result                  
 
     # write output
     out_file = open('eng_stems_to_ipa_dict.py', 'w')
-
-    out_file.write('stems = {\n')
-    for key, val in stems.items():
-        out_file.write('{}: {},\n'.format(repr(key), repr(val)))
-    out_file.write('}\n')
-    out_file.write('compounds = {\n')
-    for key, val in compounds.items():
+    out_file.write('eng_stems_to_ipa_dict = {\n')
+    for key, val in composition.items():
         out_file.write('{}: {},\n'.format(repr(key), repr(val)))
     out_file.write('}')
 

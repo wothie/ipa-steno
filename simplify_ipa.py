@@ -1,5 +1,7 @@
 from vowels_and_consonants import vowels, consonants, diphthongs, triphthongs
-from eng_stems_to_ipa_dict import stems, compounds
+from eng_stems_to_ipa_dict import eng_stems_to_ipa_dict
+from eng_to_ipa_dict import eng_to_ipa_dict
+from affix_rules import prefixes, suffixes
 import sys
 
 
@@ -29,22 +31,46 @@ def replace(c):
 
 
 if __name__=='__main__':
-    out_file = open('eng_to_simp_ipa_dict.py', 'w')
+    stems = {}
+    compounds = {}
+    prefix_ipas = {rule[0][0]: [] for rule in prefixes}
+    suffix_ipas = {rule[0][0]: [] for rule in suffixes}
+    for rule in prefixes:
+        for english, ipa, _ in rule:
+            prefix_ipas[english] += [ipa]
+    for rule in suffixes:
+        for english, ipa, _ in rule:
+            suffix_ipas[english] += [ipa]
 
+    for english, splits in eng_stems_to_ipa_dict.items():
+        # eng_stems_to_ipa_dict will include some affixes
+        for split in splits:
+            for part in split:
+                # eng_stems_to_ipa_dict has affixes as well, so we assume that every stem is in one of them
+                if part not in eng_to_ipa_dict and part not in prefix_ipas:
+                    eng_to_ipa_dict[part] = suffix_ipas[part]
+                elif part not in eng_to_ipa_dict and part not in suffix_ipas:
+                    eng_to_ipa_dict[part] = prefix_ipas[part]
+
+        for split in splits:
+            result = [[]]
+            for part in split:
+                result = [subresult + [''.join(map(replace, replace_clusters(ipa)))]
+                          for subresult in result for ipa in eng_to_ipa_dict[part]]
+
+        if any([len(split) == 1 for split in result]):
+            stems[english] = result
+        else:
+            compounds[english] = result
+
+    out_file = open('eng_to_simp_ipa_dict.py', 'w')
     out_file.write('stems = {\n')
-    for english, ipa in stems.items():
-        ipa = replace_clusters(ipa)
-        ipa = ''.join(map(replace, ipa))
-        out_file.write('{}: {},\n'.format(repr(english), repr(ipa)))
+    for english, splits in stems.items():
+        out_file.write('{}: {},\n'.format(repr(english), repr([split[0] for split in splits])))
     out_file.write('}\n')
     out_file.write('compounds = {\n')
-    for english, ipa_list in compounds.items():
-        result = []
-        for english_part, ipa_part in ipa_list:
-            ipa_part = replace_clusters(ipa_part)
-            ipa_part = ''.join(map(replace, ipa_part))
-            result += [(english_part, ipa_part)]
-        out_file.write('{}: {},\n'.format(repr(english), repr(result)))
+    for english, splits in compounds.items():
+        out_file.write('{}: {},\n'.format(repr(english), repr(splits)))
     out_file.write('}')
 
     out_file.close()
