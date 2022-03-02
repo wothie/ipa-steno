@@ -19,7 +19,7 @@
     - think about trying to detect compound words like "downgrade"
         - would remove a lot of words from single-stroke, but also make things clearer
         - list all rejected words by their composition, in ipa and english
-        * create strokes for the affixes probably (not sure if necessary, but probably useful)
+        - create strokes for the affixes probably (not sure if necessary, but probably useful)
     * build dictionary from steno notation to Plover notation
         * find better keyboard layout
         * get more rows into plover
@@ -27,10 +27,10 @@
 * multi-stroke dictionary
 
 * bugs and improvements
-    * fix bugs, so stems can only be minimal stems
-    * use suffix trees for the affixes as well
+    - fix bugs, so stems can only be minimal stems
+    - use suffix trees for the affixes as well
     - make it stop thinking that 'b' is a valid word
     * fix multiplicity. i.e. use data from counted_english for affixes/compounds
-    * make decomposition of words better. affixed and affix_free words are too separate
+    - make decomposition of words better. affixed and affix_free words are too separate
     * choose the notation based on actual conflicts rather than just the length-heuristic
     * the dictionary wants to pronounce "corp" like corporation, which is a little awkward
