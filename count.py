@@ -25,12 +25,12 @@ if __name__=='__main__':
                     # add those stems that are needed for other words
                     recursive_count[part] = count/len(split)
     # sort by count
-    result = sorted(recursive_count.items(), key=lambda x: x[1], reverse=True)
+    result = dict(sorted(recursive_count.items(), key=lambda x: x[1], reverse=True))
 
-    out_file = open('eng_composition_sorted.py', 'w')
-    out_file.write('eng_composition_sorted = {\n')
-    for english, count in result:
+    out_file = open('counts.py', 'w')
+    out_file.write('counts = {\n')
+    for english, count in result.items():
         # don't write the counts, just sort
-        out_file.write('{}: {},\n'.format(repr(english), eng_composition[english]))
+        out_file.write('{}: {},\n'.format(repr(english), count))
     out_file.write('}')
     out_file.close()

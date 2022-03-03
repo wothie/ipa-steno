@@ -21,6 +21,9 @@
         - list all rejected words by their composition, in ipa and english
         - create strokes for the affixes probably (not sure if necessary, but probably useful)
     * build dictionary from steno notation to Plover notation
+        * define more consonants, I only have 14
+            * or find a different use like punctuation or whatnot
+        * count phonemes for assigning to key-combinations
         * find better keyboard layout
         * get more rows into plover
     * finally, build the dictionary from Plover to English
@@ -34,4 +37,4 @@
     - make decomposition of words better. affixed and affix_free words are too separate
     - choose the notation based on actual conflicts rather than just the length-heuristic
     - the dictionary wants to pronounce "corp" like corporation, which is a little awkward
-        - solved by conflict-heuristic :D
+        - solved by conflict-heuristic and counting :D

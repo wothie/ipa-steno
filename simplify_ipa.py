@@ -1,5 +1,6 @@
 from vowels_and_consonants import vowels, consonants, diphthongs, triphthongs
-from eng_composition_sorted import eng_composition_sorted
+from eng_composition import eng_composition
+from counts import counts
 from eng_to_ipa_dict import eng_to_ipa_dict
 from affix_rules import prefixes, suffixes
 import sys
@@ -41,6 +42,8 @@ if __name__=='__main__':
     for rule in suffixes:
         for english, ipa, _ in rule:
             suffix_ipas[english] += [ipa]
+
+    eng_composition_sorted = dict(sorted(eng_composition, key=lambda x: counts[x[0]], reverse=True))
 
     for english, splits in eng_composition_sorted.items():
         # eng_composition_sorted will include some affixes
