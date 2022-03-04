@@ -43,7 +43,9 @@ if __name__=='__main__':
         for english, ipa, _ in rule:
             suffix_ipas[english] += [ipa]
 
-    eng_composition_sorted = dict(sorted(eng_composition, key=lambda x: counts[x[0]], reverse=True))
+    eng_composition_sorted = {}
+    for english in counts.keys():
+        eng_composition_sorted[english] = eng_composition[english]
 
     for english, splits in eng_composition_sorted.items():
         # eng_composition_sorted will include some affixes

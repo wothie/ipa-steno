@@ -10,13 +10,15 @@
                     ("to_stems.py")
                     ("vowels_and_consonants.py" "eng_composition.py")
                     ("count.py")
-                    ("eng_composition_sorted.py")
+                    ("counts.py")
                     ("simplify_ipa.py")
                     ("eng_to_simp_ipa_dict.py")
                     ("to_notation.py")
                     ("eng_to_notation_dict.py")
                     ("finalize_dict.py")
-                    ("notation_to_eng_dict.py")))
+                    ("notation_to_eng_dict.py")
+                    ("keymap.py")
+                    ("keys_to_eng_dict.py")))
 
 ;; fill the dictionary with the file hashes
 (define file-to-hash
