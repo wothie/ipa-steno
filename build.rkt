@@ -39,7 +39,9 @@
   (dropf file-deps
     (lambda (level) (andmap
             (lambda (filename) (string=?
-                    (dict-ref file-to-hash filename)
+                    (if (dict-has-key? file-to-hash filename)
+                        (dict-ref file-to-hash filename)
+                        'this is hopefully not a valid hash')
                     (car (string-split #{md5sum $filename} " "))))
             level))))
 
